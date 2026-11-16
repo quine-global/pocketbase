@@ -15,17 +15,17 @@ import (
 	"sync/atomic"
 	"time"
 
+	"ganigeorgiev.com/pocketbase/dbx"
+	"ganigeorgiev.com/pocketbase/pocketbase/tools/cron"
+	"ganigeorgiev.com/pocketbase/pocketbase/tools/filesystem"
+	"ganigeorgiev.com/pocketbase/pocketbase/tools/hook"
+	"ganigeorgiev.com/pocketbase/pocketbase/tools/logger"
+	"ganigeorgiev.com/pocketbase/pocketbase/tools/mailer"
+	"ganigeorgiev.com/pocketbase/pocketbase/tools/routine"
+	"ganigeorgiev.com/pocketbase/pocketbase/tools/store"
+	"ganigeorgiev.com/pocketbase/pocketbase/tools/subscriptions"
+	"ganigeorgiev.com/pocketbase/pocketbase/tools/types"
 	"github.com/fatih/color"
-	"github.com/pocketbase/dbx"
-	"github.com/pocketbase/pocketbase/tools/cron"
-	"github.com/pocketbase/pocketbase/tools/filesystem"
-	"github.com/pocketbase/pocketbase/tools/hook"
-	"github.com/pocketbase/pocketbase/tools/logger"
-	"github.com/pocketbase/pocketbase/tools/mailer"
-	"github.com/pocketbase/pocketbase/tools/routine"
-	"github.com/pocketbase/pocketbase/tools/store"
-	"github.com/pocketbase/pocketbase/tools/subscriptions"
-	"github.com/pocketbase/pocketbase/tools/types"
 	"github.com/spf13/cast"
 	"golang.org/x/sync/semaphore"
 )
@@ -1317,7 +1317,7 @@ func normalizeSQLLog(sql string) string {
 
 func (app *BaseApp) initAuxDB() error {
 	// note: renamed to "auxiliary" because "aux" is a reserved Windows filename
-	// (see https://github.com/pocketbase/pocketbase/issues/5607)
+	// (see https://ganigeorgiev.com/pocketbase/discussions/5607)
 	dbPath := filepath.Join(app.DataDir(), auxDBFilename)
 
 	concurrentDB, err := app.config.DBConnect(dbPath)
@@ -1398,7 +1398,7 @@ func (app *BaseApp) registerBaseHooks() {
 		Func: func(e *ModelEvent) error {
 			if m, ok := e.Model.(FilesManager); ok && m.BaseFilesPath() != "" && supportFiles(e.Model) {
 				// ensure that there is a trailing slash so that the list iterator could start walking from the prefix dir
-				// (https://github.com/pocketbase/pocketbase/discussions/5246#discussioncomment-10128955)
+				// (https://ganigeorgiev.com/pocketbase/discussions/5246#discussioncomment-10128955)
 				prefix := strings.TrimRight(m.BaseFilesPath(), "/") + "/"
 
 				// note: for now assume no context cancellation
@@ -1559,7 +1559,7 @@ func (app *BaseApp) initLogger() error {
 			// when we can't be sure if the logs write wasn't triggered while
 			// inside another AUX db transaction (ticker or batch threshold reached)
 			// which can block indefinitely and cause deadlock
-			// (https://github.com/pocketbase/pocketbase/issues/7836)
+			// (https://ganigeorgiev.com/pocketbase/discussions/7836)
 			shouldBlock, _ := ctx.Value(logger.BlockKey).(bool)
 			if shouldBlock {
 				runLogsWrite(logs)
@@ -1632,14 +1632,14 @@ func (app *BaseApp) initLogger() error {
 			})
 			_, err = e.App.AuxNonconcurrentDB().Delete((&Log{}).TableName(), expr).Execute()
 			if err != nil {
-				e.App.Logger().Debug("Failed to cleanup old logs", "error", err)
+				e.App.Logger().Warn("Failed to cleanup old logs", "error", err)
 			}
 
-			// no logs are allowed -> try to reclaim preserved disk space after the previous delete operation
+			// no logs are allowed -> try to free up unused disk space after the previous delete operation
 			if e.App.Settings().Logs.MaxDays == 0 {
 				err = e.App.AuxVacuum()
 				if err != nil {
-					e.App.Logger().Debug("Failed to VACUUM aux database", "error", err)
+					e.App.Logger().Warn("Failed to VACUUM aux database", "error", err)
 				}
 			}
 
@@ -1649,10 +1649,44 @@ func (app *BaseApp) initLogger() error {
 	})
 
 	// cleanup old logs
+	//
+	// note: need to count before/after delete manually because drivers
+	// are not required to support returning affected rows
+	// ---
+	var totalDeletedSinceVacuum atomic.Int64
 	app.Cron().Add("__pbLogsCleanup__", "0 */6 * * *", func() {
-		deleteErr := app.DeleteOldLogs(time.Now().AddDate(0, 0, -1*app.Settings().Logs.MaxDays))
-		if deleteErr != nil {
-			app.Logger().Warn("Failed to delete old logs", "error", deleteErr)
+		oldCount, err := app.CountLogs()
+		if err != nil {
+			app.Logger().Warn("Failed to count logs before delete", "error", err)
+		}
+
+		err = app.DeleteOldLogs(time.Now().AddDate(0, 0, -1*app.Settings().Logs.MaxDays))
+		if err != nil {
+			app.Logger().Warn("Failed to delete old logs", "error", err)
+		}
+
+		newCount, err := app.CountLogs()
+		if err != nil {
+			app.Logger().Warn("Failed to count logs after delete", "error", err)
+		}
+
+		// try to free up unused disk space if a lot of logs have been deleted
+		// (its racy but its ok in our use case as it is not expected to run frequently)
+		total := totalDeletedSinceVacuum.Add(max(oldCount-newCount, 0))
+		if total >= 50000 {
+			totalDeletedSinceVacuum.Store(0)
+
+			err = app.AuxVacuum()
+			if err != nil {
+				app.Logger().Warn("Failed to VACUUM aux database after cleanup", "error", err)
+			}
+		}
+
+		// force a checkpoint to minimize the risk of excessive wal file
+		// growth due to slower delete or vacuum
+		_, err = app.AuxNonconcurrentDB().NewQuery("PRAGMA wal_checkpoint(TRUNCATE)").Execute()
+		if err != nil {
+			app.Logger().Warn("Failed to run PRAGMA wal_checkpoint after logs cleanup", "error", err)
 		}
 	})
 

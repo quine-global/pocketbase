@@ -6,10 +6,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pocketbase/dbx"
-	"github.com/pocketbase/pocketbase/core"
-	"github.com/pocketbase/pocketbase/tests"
-	"github.com/pocketbase/pocketbase/tools/types"
+	"ganigeorgiev.com/pocketbase/dbx"
+	"ganigeorgiev.com/pocketbase/pocketbase/core"
+	"ganigeorgiev.com/pocketbase/pocketbase/tests"
+	"ganigeorgiev.com/pocketbase/pocketbase/tools/types"
 )
 
 func TestFindLogById(t *testing.T) {
@@ -41,6 +41,58 @@ func TestFindLogById(t *testing.T) {
 
 			if log != nil && log.Id != s.id {
 				t.Fatalf("Expected log with id %q, got %q", s.id, log.Id)
+			}
+		})
+	}
+}
+
+func TestCountLogs(t *testing.T) {
+	t.Parallel()
+
+	app, _ := tests.NewTestApp()
+	defer app.Cleanup()
+
+	tests.StubLogsData(app)
+
+	scenarios := []struct {
+		name        string
+		expressions []dbx.Expression
+		expectTotal int64
+	}{
+		{
+			"nil expression",
+			[]dbx.Expression{nil},
+			2,
+		},
+		{
+			"no matches",
+			[]dbx.Expression{
+				nil,
+				dbx.Like("message", "test"),
+				dbx.HashExp{"level": 1},
+			},
+			0,
+		},
+		{
+			"with matches",
+			[]dbx.Expression{
+				nil,
+				dbx.Like("message", "test"),
+				dbx.HashExp{"level": 0},
+			},
+			1,
+		},
+	}
+
+	for _, s := range scenarios {
+		t.Run(s.name, func(t *testing.T) {
+			total, err := app.CountLogs(s.expressions...)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if total != s.expectTotal {
+				t.Fatalf("Expected total %d, got %d", s.expectTotal, total)
 			}
 		})
 	}

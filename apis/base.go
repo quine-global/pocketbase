@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/pocketbase/pocketbase/core"
-	"github.com/pocketbase/pocketbase/tools/router"
+	"ganigeorgiev.com/pocketbase/pocketbase/core"
+	"ganigeorgiev.com/pocketbase/pocketbase/tools/router"
 )
 
 // StaticWildcardParam is the name of Static handler wildcard parameter.
@@ -31,6 +31,7 @@ func NewRouter(app core.App) (*router.Router[*core.RequestEvent], error) {
 	pbRouter.Bind(panicRecover())
 	pbRouter.Bind(rateLimit())
 	pbRouter.Bind(loadAuthToken())
+	pbRouter.Bind(rejectUnknownToken())
 	pbRouter.Bind(superuserIPsWhitelist())
 	pbRouter.Bind(securityHeaders())
 	pbRouter.Bind(BodyLimit(DefaultMaxBodySize))

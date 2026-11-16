@@ -8,12 +8,12 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/pocketbase/dbx"
-	"github.com/pocketbase/pocketbase/tools/dbutils"
-	"github.com/pocketbase/pocketbase/tools/inflector"
-	"github.com/pocketbase/pocketbase/tools/list"
-	"github.com/pocketbase/pocketbase/tools/search"
-	"github.com/pocketbase/pocketbase/tools/security"
+	"ganigeorgiev.com/pocketbase/dbx"
+	"ganigeorgiev.com/pocketbase/pocketbase/tools/dbutils"
+	"ganigeorgiev.com/pocketbase/pocketbase/tools/inflector"
+	"ganigeorgiev.com/pocketbase/pocketbase/tools/list"
+	"ganigeorgiev.com/pocketbase/pocketbase/tools/search"
+	"ganigeorgiev.com/pocketbase/pocketbase/tools/security"
 )
 
 var recordProxyType = reflect.TypeOf((*RecordProxy)(nil)).Elem()
@@ -458,12 +458,12 @@ func (app *BaseApp) FindFirstRecordByFilter(
 }
 
 // CountRecords returns the total number of records in a collection.
-func (app *BaseApp) CountRecords(collectionModelOrIdentifier any, exprs ...dbx.Expression) (int64, error) {
+func (app *BaseApp) CountRecords(collectionModelOrIdentifier any, optExprs ...dbx.Expression) (int64, error) {
 	var total int64
 
 	q := app.RecordQuery(collectionModelOrIdentifier).Select("count(*)")
 
-	for _, expr := range exprs {
+	for _, expr := range optExprs {
 		if expr != nil { // add only the non-nil expressions
 			q.AndWhere(expr)
 		}

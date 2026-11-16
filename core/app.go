@@ -8,13 +8,13 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/pocketbase/dbx"
-	"github.com/pocketbase/pocketbase/tools/cron"
-	"github.com/pocketbase/pocketbase/tools/filesystem"
-	"github.com/pocketbase/pocketbase/tools/hook"
-	"github.com/pocketbase/pocketbase/tools/mailer"
-	"github.com/pocketbase/pocketbase/tools/store"
-	"github.com/pocketbase/pocketbase/tools/subscriptions"
+	"ganigeorgiev.com/pocketbase/dbx"
+	"ganigeorgiev.com/pocketbase/pocketbase/tools/cron"
+	"ganigeorgiev.com/pocketbase/pocketbase/tools/filesystem"
+	"ganigeorgiev.com/pocketbase/pocketbase/tools/hook"
+	"ganigeorgiev.com/pocketbase/pocketbase/tools/mailer"
+	"ganigeorgiev.com/pocketbase/pocketbase/tools/store"
+	"ganigeorgiev.com/pocketbase/pocketbase/tools/subscriptions"
 )
 
 // App defines the main PocketBase app interface.
@@ -382,6 +382,9 @@ type App interface {
 
 	// LogsStatsItem returns hourly grouped logs statistics.
 	LogsStats(expr dbx.Expression) ([]*LogsStatsItem, error)
+
+	// CountLogs returns the total number of log entries.
+	CountLogs(exprs ...dbx.Expression) (int64, error)
 
 	// DeleteOldLogs delete all logs that are created before createdBefore.
 	DeleteOldLogs(createdBefore time.Time) error
