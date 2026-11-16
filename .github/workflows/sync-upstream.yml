@@ -31,4 +31,5 @@ jobs:
 
           # No --force: if master ever diverges from upstream, the push fails instead of rewriting history.
           git push fork FETCH_HEAD:refs/heads/master
-          git push fork --tags
+          git ls-remote --tags --refs fork | awk '{print $2}' | sort > existing
+          git for-each-ref --format='%(refname)' refs/tags | sort | comm -23 - existing | xargs -r -n 50 git push fork
