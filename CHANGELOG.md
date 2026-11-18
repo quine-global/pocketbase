@@ -1,3 +1,23 @@
+## v0.42.3
+
+- Increased the auto `VACUUM` deleted logs threshold to 50k to avoid unnecessery running too often.
+
+- Explicitly check for error body in the [S3 CompleteMultipartUpload call](https://docs.aws.amazon.com/AmazonS3/latest/API/API_CompleteMultipartUpload.html) because chunks post-processing can still fail even with 200 responses.
+
+- Added `write error: client disconnected` to the benign log errors list.
+
+- Added `.webm` to the UI video extensions list.
+
+- Changed the OAuth2 redirect failure logs from DEBUG to WARN level for better visibility.
+
+- Relaxed the extra IP realtime check to allow subscription requests for a single client to originate from different IPs ([#7758](https://ganigeorgiev.com/pocketbase/discussions/7758#comment-7ccdsr6gi1nd0y3)).
+    _Note that authenticated realtime subscribers are still protected from bruteforce subscription change attempts because we still enforce a same auth requirement._
+    _Since v0.38.2 realtime connections are also restricted to max 30min by default no matter whether they are idle or not forcing the client id to reset on reconnect which further makes such enumaration related attacks very unlikely._
+    _You can technically also completely disable all realtime IP checks as shown in the related discussion but I'd advice against doing that unless you have a very good reason._
+
+- Bumped `golang.org/x/*` dependencies.
+
+
 ## v0.42.2
 
 - Fixed another UI regression causing wrong redirect page on OAuth2 success ([bugstage#14](https://ganigeorgiev.com/bugstage/discussions/14)).

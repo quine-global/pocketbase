@@ -510,6 +510,7 @@ var benignErrors = []string{
 	"http2: request body closed due to handler exiting",
 	"http2: stream closed",
 	"write: broken pipe",
+	"write error: client disconnected",
 }
 
 func canBeIgnored(err error) bool {
