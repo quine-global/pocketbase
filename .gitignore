@@ -20,7 +20,3 @@ CHANGELOG.html
 CHANGELOG_22_39.html
 CHANGELOG_16_22.html
 CHANGELOG_8_15.html
-
-# prebuilt admin UI (rebuilt by Dockerfile and CI, see ui/embed.go)
-ui/dist/*
-!ui/dist/.gitkeep
