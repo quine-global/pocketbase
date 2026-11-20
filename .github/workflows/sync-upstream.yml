@@ -14,11 +14,27 @@ concurrency:
 jobs:
   sync:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - repo: pocketbase
+            upstream: pocketbase/pocketbase
+          - repo: dbx
+            upstream: pocketbase/dbx
+          - repo: fexpr
+            upstream: fexpr/fexpr
+          - repo: ozzo-validation
+            upstream: pocketbase/ozzo-validation
+          - repo: tygoja
+            upstream: pocketbase/tygoja
+    name: ${{ matrix.repo }}
     steps:
       - name: Mirror upstream master and tags
         env:
-          UPSTREAM: https://ganigeorgiev.com/git/pocketbase/pocketbase
-          FORK: https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git
+          UPSTREAM: https://ganigeorgiev.com/git/${{ matrix.upstream }}
+          # github.token cannot push to other repos or push tags that change .github/workflows, so a PAT is required.
+          FORK: https://x-access-token:${{ secrets.SYNC_TOKEN }}@github.com/${{ github.repository_owner }}/${{ matrix.repo }}.git
         run: |
           git init -q mirror
           cd mirror
